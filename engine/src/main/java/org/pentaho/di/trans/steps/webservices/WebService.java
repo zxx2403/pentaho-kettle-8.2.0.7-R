@@ -356,7 +356,20 @@ public class WebService extends BaseStep implements StepInterface {
   }
 
   private synchronized void requestSOAP( Object[] rowData, RowMetaInterface rowMeta ) throws KettleException {
-    initWsdlEnv();
+	// delete by steven zhong 20190214 --start
+    //initWsdlEnv();
+	// delete by steven zhong 20190214 --end
+	
+	//add by steven zhong 20190217 --start
+	int proxyPort = 0;
+	if ( StringUtils.isNotBlank( meta.getProxyHost() ) ) {
+	  proxyPort = Const.toInt( environmentSubstitute( meta.getProxyPort() ), 8080 );
+	  initWsdlEnv(meta.getProxyHost(), proxyPort);
+	} else {
+		initWsdlEnv();
+	}
+	//add by steven zhong 20190218 --end
+	
     HttpPost vHttpMethod = null;
     HttpEntity httpEntity = null;
     Charset charSet = Charset.defaultCharset();
@@ -444,6 +457,34 @@ public class WebService extends BaseStep implements StepInterface {
     }
 
   }
+  
+  //add by steven zhong 20190214 --start
+  private void initWsdlEnv(String proxyHost, int proxyPort) throws KettleException {
+    if ( meta.equals( cachedMeta ) ) {
+      return;
+    }
+    cachedMeta = meta;
+
+    try {
+      cachedWsdl = new Wsdl( new java.net.URI( data.realUrl ), null, null, environmentSubstitute( meta.getHttpLogin() ),
+        Encr.decryptPasswordOptionallyEncrypted( environmentSubstitute( meta.getHttpPassword() ) ), proxyHost, proxyPort );
+    } catch ( Exception e ) {
+      throw new KettleStepException( BaseMessages.getString( PKG, "WebServices.ERROR0013.ExceptionLoadingWSDL" ), e );
+    }
+
+    cachedURLService = cachedWsdl.getServiceEndpoint();
+    cachedHostConfiguration = HttpClientContext.create();
+    cachedHttpClient = getHttpClient( cachedHostConfiguration );
+    // Generate the XML to send over, determine the correct name for the request...
+    //
+    cachedOperation = cachedWsdl.getOperation( meta.getOperationName() );
+    if ( cachedOperation == null ) {
+      throw new KettleException( BaseMessages.getString( PKG, "WebServices.Exception.OperarationNotSupported", meta
+        .getOperationName(), meta.getUrl() ) );
+    }
+
+  }  
+  //add by steven zhong 20190214 --end
 
   static String getLocationFrom( HttpPost method ) {
     Header locationHeader = method.getFirstHeader( "Location" );

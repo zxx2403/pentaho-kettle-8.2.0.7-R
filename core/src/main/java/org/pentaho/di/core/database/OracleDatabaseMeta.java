@@ -138,7 +138,11 @@ public class OracleDatabaseMeta extends BaseDatabaseMeta implements DatabaseInte
         // (ADDRESS=(PROTOCOL=TCP)(HOST=xxxxx)(PORT=1526))
         // (ADDRESS=(PROTOCOL=TCP)(HOST=xxxx)(PORT=1526)))(CONNECT_DATA=(SERVICE_NAME=somesid)))
         return "jdbc:oracle:thin:@" + databaseName;
-      } else {
+	  // add by steven zhong 20180329 --start
+      } else if ( Utils.isEmpty( port ) || port.equals( "-1" ) ) {
+		return databaseName;
+	  // add by steven zhong 20180329 --end 
+	  } else {
         // by default we assume a SID
         return "jdbc:oracle:thin:@" + hostname + ":" + port + ":" + databaseName;
       }

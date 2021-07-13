@@ -106,4 +106,47 @@ public class HTTPProtocol {
     // Display response
     return bodyBuffer.toString();
   }
+  
+  //add by steven zhong 20190214 --start
+  public String get( String urlAsString, String username, String password, String proxyHost, int proxyPort )
+    throws IOException, AuthenticationException {
+
+    HttpClient httpClient;
+    HttpGet getMethod = new HttpGet( urlAsString );
+    if ( !Utils.isEmpty( username ) || !Utils.isEmpty( proxyHost ) ) {
+      HttpClientManager.HttpClientBuilderFacade clientBuilder = HttpClientManager.getInstance().createBuilder();
+	  if ( !Utils.isEmpty( username ) ){
+		  clientBuilder.setCredentials( username, password );
+	  }
+      if ( !Utils.isEmpty( proxyHost ) ){
+		  clientBuilder.setProxy( proxyHost, proxyPort );
+	  }
+      httpClient = clientBuilder.build();
+    } else {
+      httpClient = HttpClientManager.getInstance().createDefaultClient();
+    }
+    HttpResponse httpResponse = httpClient.execute( getMethod );
+    int statusCode = httpResponse.getStatusLine().getStatusCode();
+    StringBuilder bodyBuffer = new StringBuilder();
+
+    if ( statusCode != -1 ) {
+      if ( statusCode != HttpStatus.SC_UNAUTHORIZED ) {
+        // the response
+        InputStreamReader inputStreamReader = new InputStreamReader( httpResponse.getEntity().getContent() );
+
+        int c;
+        while ( ( c = inputStreamReader.read() ) != -1 ) {
+          bodyBuffer.append( (char) c );
+        }
+        inputStreamReader.close();
+
+      } else {
+        throw new AuthenticationException();
+      }
+    }
+
+    // Display response
+    return bodyBuffer.toString();
+  }  
+  //add by steven zhong 20190214 --end
 }

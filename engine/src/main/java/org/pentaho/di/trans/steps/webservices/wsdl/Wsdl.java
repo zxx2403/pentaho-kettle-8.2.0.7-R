@@ -117,6 +117,47 @@ public final class Wsdl implements java.io.Serializable {
     _operationCache = new HashMap<String, WsdlOperation>();
   }
 
+  //add by steven zhong 20190214 --start
+  public Wsdl( URI wsdlURI, QName serviceQName, String portName, String username, String password, String proxyHost, int proxyPort ) throws AuthenticationException {
+
+    this.wsdlURI = wsdlURI;
+    try {
+      _wsdlDefinition = parse( wsdlURI, username, password, proxyHost, proxyPort );
+    } catch ( AuthenticationException ae ) {
+      // throw this again since KettleException is catching it
+      throw ae;
+    } catch ( WSDLException e ) {
+      throw new RuntimeException( "Could not load WSDL file: " + e.getMessage(), e );
+    } catch ( KettleException e ) {
+      throw new RuntimeException( "Could not load WSDL file: " + e.getMessage(), e );
+    }
+    if ( serviceQName == null ) {
+      _service = (Service) _wsdlDefinition.getServices().values().iterator().next();
+    } else {
+      _service = _wsdlDefinition.getService( serviceQName );
+      if ( _service == null ) {
+        throw new IllegalArgumentException( "Service: "
+          + serviceQName + " is not defined in the WSDL file " + wsdlURI );
+      }
+    }
+
+    if ( portName == null ) {
+      _port = getSoapPort( _service.getPorts().values() );
+    } else {
+      _port = _service.getPort( portName );
+      if ( _port == null ) {
+        throw new IllegalArgumentException( "Port: "
+          + portName + " is not defined in the service: " + serviceQName );
+      } else {
+        _port = _service.getPort( portName );
+      }
+    }
+
+    _wsdlTypes = new WsdlTypes( _wsdlDefinition );
+    _operationCache = new HashMap<String, WsdlOperation>();
+  }  
+  //add by steven zhong 20190214 --end
+
   /**
    * Returns the first Soap port from the passed collection of Ports.
    *
@@ -369,6 +410,14 @@ public final class Wsdl implements java.io.Serializable {
     WSDLReader wsdlReader = getReader();
     return readWsdl( wsdlReader, wsdlURI.toString(), username, password );
   }
+  
+  //add by steven zhong 20190214 --start
+  private Definition parse( URI wsdlURI, String username, String password, String proxyHost, int proxyPort ) throws WSDLException, KettleException,
+    AuthenticationException {
+    WSDLReader wsdlReader = getReader();
+    return readWsdl( wsdlReader, wsdlURI.toString(), username, password, proxyHost, proxyPort );
+  }  
+  //add by steven zhong 20190214 --end
 
   private Definition readWsdl( WSDLReader wsdlReader, String uri, String username, String password ) throws WSDLException, KettleException, AuthenticationException {
 
@@ -389,6 +438,28 @@ public final class Wsdl implements java.io.Serializable {
       throw new KettleException( ioe );
     }
   }
+  
+  //add by steven zhong 20190214 --start
+  private Definition readWsdl( WSDLReader wsdlReader, String uri, String username, String password, String proxyHost, int proxyPort ) throws WSDLException, KettleException, AuthenticationException {
+
+    try {
+      HTTPProtocol http = new HTTPProtocol();
+      Document doc = XMLHandler.loadXMLString( http.get( wsdlURI.toString(), username, password, proxyHost, proxyPort ), true, false );
+      if ( doc != null ) {
+        return ( wsdlReader.readWSDL( doc.getBaseURI(), doc ) );
+      } else {
+        throw new KettleException( "Unable to get document." );
+      }
+    } catch ( MalformedURLException mue ) {
+      throw new KettleException( mue );
+    } catch ( AuthenticationException ae ) {
+      // re-throw this. If not IOException seems to catch it
+      throw ae;
+    } catch ( IOException ioe ) {
+      throw new KettleException( ioe );
+    }
+  }  
+  //add by steven zhong 20190214 --end
 
   /**
    * Returns this objects WSDL types.
